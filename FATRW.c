@@ -306,6 +306,9 @@ void export(void *jd, FILE *fp, unsigned int lba)
     /* otherwise, calculate the lba of the next block */
     lba = val+nfatsectors-1;
   }
+
+  printf("Reads: %d\n", jdisk_reads(jd));
+  printf("Writes: %d\n", jdisk_writes(jd));
 }
 
 /* get the number of sectors that compose the FAT */
