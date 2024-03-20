@@ -1,7 +1,7 @@
-all: jdisk_test  FAT FATRW sectordiff
+all: FATRW
 
 clean:
-	rm -f jdisk_test FAT FATRW sectordiff *.o
+	rm -f FATRW *.o
 
 .c.o: 
 	gcc -c -Iinclude $*.c
