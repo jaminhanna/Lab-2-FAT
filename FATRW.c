@@ -90,7 +90,8 @@ int main(int argc, char *argv[])
   }
   /* get the number of FAT sectors that allows the number of data
      sectors to be maximized */
-  nfatsectors = getfatsectors(nsectors);
+  nfatsectors = (nsectors+1)/513;
+  nfatsectors += ((nsectors-nfatsectors+1)%512 == 0) ? 0 : 1;
 
   /* validate starting-block */
   if (strcmp(op, "export") == 0) {
