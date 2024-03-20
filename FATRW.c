@@ -14,10 +14,11 @@
 
 char **pb; /* pointers to blocks */
 unsigned nfatsectors;
+unsigned nread;       /* number of FAT sectors read */
 
 void import(char *filename, void *jd, FILE *fp);
 void export(void *jd, FILE *fp, unsigned int lba);
-unsigned int getfatsectors(unsigned int nsectors);
+void cleanup(void);
 
 int main(int argc, char *argv[])
 {
@@ -37,6 +38,11 @@ int main(int argc, char *argv[])
   if (argc < 3) { fprintf(stderr, "%s", usage); return EXIT_FAILURE; }
 
   i = 2;
+
+  if (atexit(cleanup) != 0) {
+    fprintf(stderr, "Atexit failed\n");
+    return EXIT_FAILURE;
+  }
 
   /* validate operation and get file access mode */
   op = argv[i++];
@@ -151,9 +157,10 @@ void import(char *filename, void *jd, FILE *fp)
       pb[block] = (char *) malloc(JDISK_SECTOR_SIZE * sizeof(char));
       if (pb[block] == NULL)
         { fprintf(stderr, "Malloc failed\n"); exit(EXIT_FAILURE); }
-    rv = jdisk_read(jd, block, pb[block]);
-    if (rv < 0)
-      { fprintf(stderr, "Jdisk_read failed\n"); exit(EXIT_FAILURE); }
+      rv = jdisk_read(jd, block, pb[block]);
+      if (rv < 0)
+        { fprintf(stderr, "Jdisk_read failed\n"); exit(EXIT_FAILURE); }
+      ++nread;
     }
     /* treat the block as an array of shorts */
     sp = (short *) pb[block];
@@ -193,6 +200,7 @@ void import(char *filename, void *jd, FILE *fp)
         if (pb[block] == NULL) { fprintf(stderr, "Malloc failed\n");
           exit(EXIT_FAILURE);
         }
+        ++nread;
       }
       rv = jdisk_read(jd, block, pb[block]);
       if (rv < 0) {
@@ -275,6 +283,7 @@ void export(void *jd, FILE *fp, unsigned int lba)
         fprintf(stderr, "Jdisk_read failed\n");
         exit(EXIT_FAILURE);
       }
+      ++nread;
     }
     /* store the value of the current link in val */
     val = *((short *) pb[block] + index%(JDISK_SECTOR_SIZE/2));
@@ -311,31 +320,20 @@ void export(void *jd, FILE *fp, unsigned int lba)
   printf("Writes: %d\n", jdisk_writes(jd));
 }
 
-/* get the number of sectors that compose the FAT */
-unsigned int getfatsectors(unsigned int nsectors)
+/* close files and free memory */
+void cleanup(void)
 {
-  unsigned int d;     /* number of data sectors */
-  unsigned int s;     /* number of FAT sectors */
-  unsigned int start;
-  unsigned int size;
+  unsigned i, j;
 
-  start = 1;         /* minimum number of data sectors */
-  size = nsectors-1; /* maximum number of data sectors */
+  jdisk_unattach(jd);
+  fclose(fp);
 
-  while (size > 1) {
-    /* see if the disk is large enough to hold d data sectors */
-    d = start + size/2;
-    s = d * 2 / JDISK_SECTOR_SIZE + 1;
-
-    /* consider only lower values if d is too large */
-    if (d+s > nsectors) {
-      size /= 2;
-    /* otherwise, consider higher values if d is not too large */
-    } else {
-      start += size/2;
-      size -= size/2;
+  /* free memory associated with read blocks of FAT */
+  for (i = j = 0; j < nread; ++i) {
+    if (pb[i] != NULL) {
+      free(pb[i]);
+      ++j;
     }
   }
-
-  return nsectors-start;
+  free(pb);
 }
