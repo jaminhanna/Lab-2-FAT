@@ -15,9 +15,11 @@
 char **pb; /* pointers to blocks */
 unsigned nfatsectors;
 unsigned nread;       /* number of FAT sectors read */
+void *jd;             /* handle to a jdisk */
+FILE *fp;
 
-void import(char *filename, void *jd, FILE *fp);
-void export(void *jd, FILE *fp, unsigned int lba);
+void import(char *filename);
+void export(unsigned int lba);
 void cleanup(void);
 
 int main(int argc, char *argv[])
@@ -29,8 +31,6 @@ int main(int argc, char *argv[])
   char *mode;           /* file access mode */
   char *usage;        
   char *msg;        
-  void *jd;             /* handle to a jdisk */
-  FILE *fp;
 
   usage = "       FATRW diskfile import input-file\n"
           "       FATRW diskfile export starting-block output-file\n";
@@ -123,14 +123,14 @@ int main(int argc, char *argv[])
   for (i = 0; i < nsectors; ++i) pb[i] = NULL;
 
   /* perform the appropriate operation */
-  if      (strcmp(op, "import") == 0) import(argv[3], jd, fp);
-  else if (strcmp(op, "export") == 0) export(jd, fp, sblock);
+  if      (strcmp(op, "import") == 0) import(argv[3]);
+  else if (strcmp(op, "export") == 0) export(sblock);
 
   return EXIT_SUCCESS;
 }
 
 /* write file to disk if there is sufficient space */
-void import(char *filename, void *jd, FILE *fp)
+void import(char *filename)
 {
   int i;
   int rv;               /* return value of jdisk_read */
@@ -248,7 +248,7 @@ void import(char *filename, void *jd, FILE *fp)
 }
 
 /* read file from disk */
-void export(void *jd, FILE *fp, unsigned int lba)
+void export(unsigned int lba)
 {
   unsigned int i;
   unsigned short index;
